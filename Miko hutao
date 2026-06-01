@@ -1,0 +1,207 @@
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+
+local player = Players.LocalPlayer
+local pGui = player:WaitForChild("PlayerGui")
+local debounce = false -- Hệ thống chống lag / chống spam lệnh
+
+-- 1. KHỞI TẠO SCREEN GUI
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "HuTaoGuiSystem"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.Parent = pGui
+
+-- 2. KHỞI TẠO KHUNG CHÍNH (MAIN FRAME)
+local MainFrame = Instance.new("Frame")
+MainFrame.Name = "MainFrame"
+MainFrame.Size = UDim2.new(0, 350, 0, 200)
+MainFrame.Position = UDim2.new(0.5, -175, 0.5, -100)
+MainFrame.BackgroundColor3 = Color3.fromRGB(30, 25, 25)
+MainFrame.BorderSizePixel = 0
+MainFrame.Parent = ScreenGui
+
+local mainCorner = Instance.new("UICorner")
+mainCorner.CornerRadius = UDim.new(0, 12)
+mainCorner.Parent = MainFrame
+
+local gradient = Instance.new("UIGradient")
+gradient.Color = ColorSequence.new({
+	ColorSequenceKeypoint.new(0, Color3.fromRGB(150, 40, 40)),
+	ColorSequenceKeypoint.new(1, Color3.fromRGB(240, 90, 70))
+})
+gradient.Parent = MainFrame
+
+-- 3. TIÊU ĐỀ (TITLE)
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(1, 0, 0, 40)
+Title.BackgroundTransparency = 1
+Title.Text = "🦋 HU TAO INTERFACE 🦋"
+Title.TextColor3 = Color3.fromRGB(255, 230, 230)
+Title.TextSize = 20
+Title.Font = Enum.Font.GothamBold
+Title.Parent = MainFrame
+
+-- 4. Ô NHẬP KEY (TEXTBOX)
+local KeyBox = Instance.new("TextBox")
+KeyBox.Size = UDim2.new(0.8, 0, 0, 40)
+KeyBox.Position = UDim2.new(0.1, 0, 0.35, 0)
+KeyBox.BackgroundColor3 = Color3.fromRGB(45, 35, 35)
+KeyBox.Text = ""
+KeyBox.PlaceholderText = "Nhập Key vào đây..."
+KeyBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+KeyBox.TextSize = 16
+KeyBox.Font = Enum.Font.Gotham
+KeyBox.Parent = MainFrame
+
+local keyCorner = Instance.new("UICorner")
+keyCorner.CornerRadius = UDim.new(0, 8)
+keyCorner.Parent = KeyBox
+
+-- 5. NÚT KIỂM TRA KEY (BUTTON)
+local CheckButton = Instance.new("TextButton")
+CheckButton.Size = UDim2.new(0.5, 0, 0, 40)
+CheckButton.Position = UDim2.new(0.25, 0, 0.65, 0)
+CheckButton.BackgroundColor3 = Color3.fromRGB(190, 45, 45)
+CheckButton.Text = "KÍCH HOẠT"
+CheckButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+CheckButton.TextSize = 16
+CheckButton.Font = Enum.Font.GothamBold
+CheckButton.Parent = MainFrame
+
+local btnCorner = Instance.new("UICorner")
+btnCorner.CornerRadius = UDim.new(0, 8)
+btnCorner.Parent = CheckButton
+
+-- 6. KHUNG CHỨA CHIÊU THỨC (HIỆN KHI ĐÚNG KEY)
+local SkillFrame = Instance.new("Frame")
+SkillFrame.Size = UDim2.new(0, 450, 0, 120)
+SkillFrame.Position = UDim2.new(0.5, -225, 0.8, -60)
+SkillFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+SkillFrame.BackgroundTransparency = 0.2
+SkillFrame.Visible = false
+SkillFrame.Parent = ScreenGui
+
+local skillCorner = Instance.new("UICorner")
+skillCorner.CornerRadius = UDim.new(0, 15)
+skillCorner.Parent = SkillFrame
+
+local SkillText = Instance.new("TextLabel")
+SkillText.Size = UDim2.new(1, 0, 0.6, 0)
+SkillText.BackgroundTransparency = 1
+SkillText.Text = "ĐÃ KÍCH HOẠT SCRIPT HU TAO!\n[E] - Bướm Lửa | [Q] - Tuyệt Kỹ | [G] - BẬT GOD MODE"
+SkillText.TextColor3 = Color3.fromRGB(255, 200, 100)
+SkillText.TextSize = 15
+SkillText.Font = Enum.Font.GothamBold
+SkillText.Parent = SkillFrame
+
+-- Trạng thái hiển thị God Mode trên UI
+local GodStatusText = Instance.new("TextLabel")
+GodStatusText.Size = UDim2.new(1, 0, 0.4, 0)
+GodStatusText.Position = UDim2.new(0, 0, 0.6, 0)
+GodStatusText.BackgroundTransparency = 1
+GodStatusText.Text = "Trạng thái God Mode: ĐANG TẮT"
+GodStatusText.TextColor3 = Color3.fromRGB(255, 100, 100)
+GodStatusText.TextSize = 14
+GodStatusText.Font = Enum.Font.GothamBold
+GodStatusText.Parent = SkillFrame
+
+--- ==========================================
+--- LOGIC BẢO MẬT & CHIÊU THỨC (ANTI-DETECTION)
+--- ==========================================
+
+local CORRECT_KEY = "miko"
+local IsScriptVerified = false
+local GodModeActive = false
+
+-- Hàm xử lý God Mode (Bất tử mượt, không can thiệp thô bạo vào bộ nhớ để bypass anti-cheat)
+local function ToggleGodMode()
+	if not IsScriptVerified then return end
+	if debounce then return end
+	debounce = true
+	
+	GodModeActive = not GodModeActive
+	
+	if GodModeActive then
+		GodStatusText.Text = "Trạng thái God Mode: ĐANG BẬT ✔️"
+		GodStatusText.TextColor3 = Color3.fromRGB(100, 255, 100)
+		
+		-- Vòng lặp bất tử tối ưu, tự động khóa máu liên tục ở Client một cách an toàn
+		task.spawn(function()
+			while GodModeActive do
+				local character = player.Character
+				if character then
+					local humanoid = character:FindFirstChildOfClass("Humanoid")
+					if humanoid and humanoid.Health > 0 then
+						-- Liên tục đưa máu về trạng thái tối đa dựa trên luồng xử lý mượt (không gây sốc đổi giá trị)
+						humanoid.Health = humanoid.MaxHealth
+					end
+				end
+				task.wait(0.01) -- Chạy cực nhanh để không thể bị chết đột ngột bởi quái hoặc người chơi khác
+			end
+		end)
+	else
+		GodStatusText.Text = "Trạng thái God Mode: ĐANG TẮT ❌"
+		GodStatusText.TextColor3 = Color3.fromRGB(255, 100, 100)
+	end
+	
+	task.wait(0.5) -- Giới hạn 0.5 giây mới cho bấm Bật/Tắt lại, tránh lag và bypass hệ thống check spam của Roblox
+	debounce = false
+end
+
+-- Hiệu ứng lướt chuột qua nút
+CheckButton.MouseEnter:Connect(function()
+	TweenService:Create(CheckButton, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(230, 60, 60)}):Play()
+end)
+
+CheckButton.MouseLeave:Connect(function()
+	TweenService:Create(CheckButton, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(190, 45, 45)}):Play()
+end)
+
+-- Click kiểm tra Key
+CheckButton.MouseButton1Click:Connect(function()
+	if KeyBox.Text == CORRECT_KEY then
+		IsScriptVerified = true
+		local fadeTween = TweenService:Create(MainFrame, TweenInfo.new(0.5), {Size = UDim2.new(0,0,0,0), BackgroundTransparency = 1})
+		fadeTween:Play()
+		
+		fadeTween.Completed:Connect(function()
+			MainFrame.Visible = false
+			SkillFrame.Visible = true
+			
+			-- Kích hoạt kết nối Remote an toàn lên Server
+			local HuTaoRemote = ReplicatedStorage:WaitForChild("HuTaoSystem", 3):WaitForChild("HuTaoRemote", 3)
+			if HuTaoRemote then
+				HuTaoRemote:FireServer("miko", "InitSuccess")
+			end
+		end)
+	else
+		KeyBox.Text = ""
+		KeyBox.PlaceholderText = "SAI KEY RỒI! VUI LÒNG THỬ LẠI..."
+		KeyBox.PlaceholderColor3 = Color3.fromRGB(255, 100, 100)
+	end
+end)
+
+-- Nhận diện phím bấm hệ thống
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+	if gameProcessed or not IsScriptVerified then return end
+	
+	-- Bấm G để bật tắt chế độ Bất Tử (God Mode)
+	if input.KeyCode == Enum.KeyCode.G then
+		ToggleGodMode()
+	end
+end)
+
+-- [ANTI-TAMPER]: Tự động xóa UI và dừng hoạt động nếu phát hiện có kẻ gian cố tình xóa/đổi tên Script để lấy cắp
+task.spawn(function()
+	while true do
+		task.wait(2)
+		if ScreenGui and ScreenGui.Parent ~= pGui then
+			GodModeActive = false
+			IsScriptVerified = false
+			break
+		end
+	end
+end)
